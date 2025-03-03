@@ -1,0 +1,5 @@
+xpack.security.enabled: false
+xpack.security.http.ssl.enabled: false
+
+#xattr -r -d com.apple.quarantine jdk.app
+#xattr -r -d com.apple.quarantine lib
