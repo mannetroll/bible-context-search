@@ -3,9 +3,7 @@
 # python search_bible_elser.py --help
 #
 import argparse
-
 from elasticsearch import Elasticsearch
-
 
 def main():
     # Parse command-line arguments.
@@ -48,7 +46,7 @@ def main():
         "query": {
             "semantic": {
                 "field": "text",
-                "query":  args.query
+                "query": args.query
             }
         }
     }
@@ -65,10 +63,15 @@ def main():
         book = source.get("book", "Unknown")
         chapter = source.get("chapter", "?")
         verse = source.get("verse", "?")
-        text = source.get("text", "")
-        print(f"\nScore: {score:.4f} - {book} {chapter}:{verse}")
-        print(f"Text: {text[:150]}{'...' if len(text) > 150 else ''}")
+        text_field = source.get("text", "")
+        # Check if the text field is a dict (as in the response example)
+        if isinstance(text_field, dict):
+            text_content = text_field.get("text", "")
+        else:
+            text_content = text_field
 
+        print(f"\nScore: {score:.4f} - {book} {chapter}:{verse}")
+        print(f"Text: {text_content[:150]}{'...' if len(text_content) > 150 else ''}")
 
 if __name__ == "__main__":
     main()
