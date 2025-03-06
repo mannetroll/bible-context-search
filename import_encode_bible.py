@@ -6,6 +6,8 @@ import json
 from sentence_transformers import SentenceTransformer
 from elasticsearch import Elasticsearch, helpers
 from elasticsearch.helpers.errors import BulkIndexError
+from tqdm import tqdm
+
 
 # ----- Configuration -----
 DATA_DIR = "downloaded_jsons"  # folder containing 1.json to 66.json
@@ -108,13 +110,34 @@ actions = [
     for doc in documents
 ]
 
+#print("Indexing documents into Elasticsearch...")
+#try:
+#    helpers.bulk(es, actions)
+#    print("Indexing complete!")
+#except BulkIndexError as bulk_error:
+#    print("Bulk indexing error:")
+#    # bulk_error.errors is a list of errors for each failed document
+#    for error in bulk_error.errors:
+#        print(error)
+
 print("Indexing documents into Elasticsearch...")
 try:
-    #helpers.bulk(es, actions, pipeline="bible-inference-endpoint")
-    helpers.bulk(es, actions)
+    success_count = 0
+    error_list = []
+    # Assuming 'actions' is a list or generator of documents to index
+    for ok, result in tqdm(helpers.streaming_bulk(es, actions), total=len(actions)):
+        if ok:
+            success_count += 1
+        else:
+            error_list.append(result)
+
     print("Indexing complete!")
+    print(f"Successfully indexed {success_count} documents.")
+    if error_list:
+        print("Bulk indexing errors:")
+        for error in error_list:
+            print(error)
 except BulkIndexError as bulk_error:
     print("Bulk indexing error:")
-    # bulk_error.errors is a list of errors for each failed document
     for error in bulk_error.errors:
         print(error)

@@ -1,3 +1,7 @@
+h     index       pri rep store.size docs.count
+green bible         1   0    487.4mb      31102
+green bible-elser   1   0     87.2mb      62204
+
 GET _cat/nodes?v&s=r&h=v,name,hm,hp,r,cpu,d,dup,rm,rp,rc,u,load_1m,sc
 GET _cat/indices?s=i&v&h=h,index,pri,rep,store.size,docs.count
 
