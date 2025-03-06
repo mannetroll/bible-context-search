@@ -5,6 +5,7 @@ import os
 import json
 from sentence_transformers import SentenceTransformer
 from elasticsearch import Elasticsearch, helpers
+from elasticsearch.helpers.errors import BulkIndexError
 
 # ----- Configuration -----
 DATA_DIR = "downloaded_jsons"  # folder containing 1.json to 66.json
@@ -12,10 +13,18 @@ INDEX_NAME = "bible"
 EMBEDDING_DIM = 768  # using all-mpnet-base-v2 which returns 768-dim vectors
 
 # ----- Elasticsearch Setup -----
-es = Elasticsearch("http://localhost:9200")
+es_base = Elasticsearch("http://localhost:9200")
+es = es_base.options(request_timeout=120)
 
 # Define the index mapping including a dense_vector field for embeddings
 mapping = {
+    "settings": {
+        "index": {
+            "refresh_interval": "10s",
+            "number_of_shards": "1",
+            "number_of_replicas": "0"
+        }
+    },
     "mappings": {
         "properties": {
             "translation": {"type": "keyword"},
@@ -100,5 +109,12 @@ actions = [
 ]
 
 print("Indexing documents into Elasticsearch...")
-helpers.bulk(es, actions)
-print("Indexing complete!")
+try:
+    #helpers.bulk(es, actions, pipeline="bible-inference-endpoint")
+    helpers.bulk(es, actions)
+    print("Indexing complete!")
+except BulkIndexError as bulk_error:
+    print("Bulk indexing error:")
+    # bulk_error.errors is a list of errors for each failed document
+    for error in bulk_error.errors:
+        print(error)

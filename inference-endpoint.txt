@@ -1,0 +1,53 @@
+GET _cat/nodes?v&s=r&h=v,name,hm,hp,r,cpu,d,dup,rm,rp,rc,u,load_1m,sc
+GET _cat/indices?s=i&v&h=h,index,pri,rep,store.size,docs.count
+
+GET _cat/ml/trained_models
+GET _inference/
+
+###########################################################################
+DELETE bible-elser
+GET /bible-elser/_search
+PUT /bible-elser
+{
+  "settings": {
+    "index": {
+      "refresh_interval": "10s",
+      "number_of_shards": "1",
+      "number_of_replicas": "0"
+    }
+  },
+  "mappings": {
+    "properties": {
+      "text": {
+        "type": "semantic_text",
+        "inference_id": ".elser-2-elasticsearch"
+      }
+    }
+  }
+}
+
+POST /bible-elser/_doc
+{
+  "translation": "King James Version",
+  "abbreviation": "kjv",
+  "lang": "en",
+  "language": "English",
+  "direction": "LTR",
+  "encoding": "UTF-8",
+  "nr": 1,
+  "book": "Genesis",
+  "chapter": 20,
+  "verse": 4,
+  "text": "But Abimelech had not come near her: and he said, Lord, wilt thou slay also a righteous nation?"
+}
+
+POST /bible-elser/_search
+{
+  "size" : 3,
+  "query" : {
+    "semantic": {
+      "field": "text",
+      "query": "more power to the people"
+    }
+  }
+}

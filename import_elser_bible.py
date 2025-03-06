@@ -1,18 +1,25 @@
 import os
 import json
 from elasticsearch import Elasticsearch, helpers
+from elasticsearch.helpers.errors import BulkIndexError
 
 # ----- Configuration -----
-DATA_DIR = "downloaded_jsons"  # Folder containing 1.json to 66.json
-INDEX_NAME = "bible_elser"
+DATA_DIR = "downloaded_jsons"  # folder containing 1.json to 66.json
+INDEX_NAME = "bible-elser"
 
 # ----- Elasticsearch Setup -----
-es = Elasticsearch("http://localhost:9200")
+es_base = Elasticsearch("http://localhost:9200")
+es = es_base.options(request_timeout=120)
 
-# Create index mapping.
-# Here we use an "object" field for the embedding.
-# Replace or adjust mapping as needed for your sparse representation.
+# Define the index mapping with a semantic_text field that uses the inference endpoint.
 mapping = {
+    "settings": {
+        "index": {
+            "refresh_interval": "10s",
+            "number_of_shards": "1",
+            "number_of_replicas": "0"
+        }
+    },
     "mappings": {
         "properties": {
             "translation": {"type": "keyword"},
@@ -25,49 +32,40 @@ mapping = {
             "book": {"type": "keyword"},
             "chapter": {"type": "integer"},
             "verse": {"type": "integer"},
-            "text": {"type": "text"},
-            "embedding": {"type": "object", "enabled": True}
+            "text": {
+                "type": "semantic_text",
+                "inference_id": ".elser-2-elasticsearch"
+            }
         }
     }
 }
 
-# Delete existing index if it exists
+# Delete the index if it exists, then create a new one.
 if es.indices.exists(index=INDEX_NAME):
     es.indices.delete(index=INDEX_NAME)
 es.indices.create(index=INDEX_NAME, body=mapping)
 print(f"Created Elasticsearch index: {INDEX_NAME}")
 
-# ----- Placeholder for ELSER encoding -----
-def get_elser_embedding(text):
-    """
-    Replace this function with your actual ELSER encoding logic.
-    
-    This function should take a text string as input and return a sparse 
-    representation of the text (for example, a dictionary mapping token 
-    indices or terms to float weights).
-    
-    For demonstration purposes, we return a dummy sparse vector.
-    """
-    # Example dummy sparse vector; replace with actual ELSER output.
-    return {"1": 0.1, "42": 0.5, "100": 0.2}
-
 # ----- Process JSON Files and Prepare Documents -----
-documents = []
+documents = []  # List to store each verse as a document
 
-# Loop over files 1.json to 66.json
+# Loop over files 1.json through 66.json
 for i in range(1, 67):
     file_path = os.path.join(DATA_DIR, f"{i}.json")
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
         continue
-
     with open(file_path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    
-    # Iterate over chapters and verses
+
+    # For each chapter in the book
     for chapter in data.get("chapters", []):
+        # Each chapter should have a list of verses
         for verse in chapter.get("verses", []):
             text = verse.get("text")
+            # Optionally, filter out documents with empty text to avoid issues.
+            if not text or not text.strip():
+                continue
             doc = {
                 "translation": data.get("translation"),
                 "abbreviation": data.get("abbreviation"),
@@ -79,12 +77,11 @@ for i in range(1, 67):
                 "book": data.get("name"),
                 "chapter": verse.get("chapter"),
                 "verse": verse.get("verse"),
-                "text": text,
-                "embedding": get_elser_embedding(text)
+                "text": text
             }
             documents.append(doc)
 
-print(f"Prepared {len(documents)} documents for indexing.")
+print(f"Collected {len(documents)} verses for indexing.")
 
 # ----- Bulk Index Documents into Elasticsearch -----
 actions = [
@@ -95,5 +92,13 @@ actions = [
     for doc in documents
 ]
 
-helpers.bulk(es, actions)
-print("Indexing complete!")
+print("Indexing documents into Elasticsearch...")
+try:
+    #helpers.bulk(es, actions, pipeline="bible-inference-endpoint")
+    helpers.bulk(es, actions)
+    print("Indexing complete!")
+except BulkIndexError as bulk_error:
+    print("Bulk indexing error:")
+    # bulk_error.errors is a list of errors for each failed document
+    for error in bulk_error.errors:
+        print(error)
