@@ -2,15 +2,23 @@
 # python search_bible_context.py "more power to the people"
 #
 import argparse
-from sentence_transformers import SentenceTransformer
+
 from elasticsearch import Elasticsearch
+from sentence_transformers import SentenceTransformer
+
 
 def main():
     # Parse command-line arguments.
     parser = argparse.ArgumentParser(
         description="CLI for searching Bible verses using all-mpnet-base-v2 embeddings"
     )
-    parser.add_argument("query", type=str, help="Query text to search for")
+    parser.add_argument(
+        "query",
+        type=str,
+        nargs="?",
+        default="more power to the people",
+        help="Query text (all terms must match) [default: 'more power to the people']"
+    )
     parser.add_argument(
         "--host",
         type=str,
@@ -72,6 +80,7 @@ def main():
         text = source.get("text", "")
         print(f"\nScore: {score:.4f} - {book} {chapter}:{verse}")
         print(f"Text: {text[:150]}{'...' if len(text) > 150 else ''}")
+
 
 if __name__ == "__main__":
     main()

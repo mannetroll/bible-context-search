@@ -1,15 +1,24 @@
 #
 # python search_bible_text.py "more power to the people"
+# python search_bible_text.py --help
 #
 import argparse
+
 from elasticsearch import Elasticsearch
+
 
 def main():
     # Parse command-line arguments.
     parser = argparse.ArgumentParser(
         description="CLI for searching the Bible text field (all terms must match)"
     )
-    parser.add_argument("query", type=str, help="Query text (all terms must match)")
+    parser.add_argument(
+        "query",
+        type=str,
+        nargs="?",
+        default="more power to the people",
+        help="Query text (all terms must match) [default: 'more power to the people']"
+    )
     parser.add_argument(
         "--host",
         type=str,
@@ -33,8 +42,7 @@ def main():
     # Connect to Elasticsearch.
     es = Elasticsearch(args.host)
 
-    # Build the query to match all terms in the 'text' field.
-    # The 'operator': 'and' ensures that all terms in the query must appear.
+    # Build the query to match terms in the 'text' field.
     query_body = {
         "size": args.top_k,
         "query": {
@@ -62,6 +70,7 @@ def main():
         text = source.get("text", "")
         print(f"\nScore: {score:.4f} - {book} {chapter}:{verse}")
         print(f"Text: {text[:150]}{'...' if len(text) > 150 else ''}")
+
 
 if __name__ == "__main__":
     main()
